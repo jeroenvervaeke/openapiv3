@@ -6,15 +6,19 @@ pub trait Resolve<T> {
     fn resolve<'a>(&'a self, path: &str) -> Option<&'a T>;
 }
 
-pub trait ResolveWithOpenAPI<T> {
+pub trait ResolveWithOpenAPIAndPath<T> {
     fn resolve<'a>(&'a self, openapi: &'a OpenAPI, path: &str) -> Option<&'a T>;
 }
 
-impl<T> ReferenceOr<T>
+pub trait ResolveWithOpenAPI<T> {
+    fn resolve<'a>(&'a self, openapi: &'a OpenAPI) -> Option<&'a T>;
+}
+
+impl<T> ResolveWithOpenAPI<T> for ReferenceOr<T>
 where
     OpenAPI: Resolve<T>,
 {
-    pub fn resolve<'a>(&'a self, openapi: &'a OpenAPI) -> Option<&'a T> {
+    fn resolve<'a>(&'a self, openapi: &'a OpenAPI) -> Option<&'a T> {
         match self {
             ReferenceOr::Reference { reference } => openapi.resolve(reference),
             ReferenceOr::Item(item) => Some(item),
@@ -22,10 +26,19 @@ where
     }
 }
 
+impl<T> ResolveWithOpenAPI<T> for Option<ReferenceOr<T>>
+where
+    OpenAPI: Resolve<T>,
+{
+    fn resolve<'a>(&'a self, openapi: &'a OpenAPI) -> Option<&'a T> {
+        self.as_ref()?.resolve(openapi)
+    }
+}
+
 // Macros
 macro_rules! resolve_with_openapi {
     ($ty:ty, $property_name:ident, $resolve_type:ty) => {
-        impl ResolveWithOpenAPI<$resolve_type> for $ty {
+        impl ResolveWithOpenAPIAndPath<$resolve_type> for $ty {
             fn resolve<'a>(
                 &'a self,
                 openapi: &'a OpenAPI,
@@ -62,7 +75,7 @@ macro_rules! resolve_root_optional {
 
 macro_rules! resolve_with_openapi_index_map {
     ($ty:ty) => {
-        impl ResolveWithOpenAPI<$ty> for IndexMap<String, ReferenceOr<$ty>> {
+        impl ResolveWithOpenAPIAndPath<$ty> for IndexMap<String, ReferenceOr<$ty>> {
             fn resolve<'a>(&'a self, openapi: &'a OpenAPI, path: &str) -> Option<&'a $ty> {
                 match self.get(path)? {
                     ReferenceOr::Reference { reference } => openapi.resolve(reference),
@@ -106,6 +119,7 @@ resolve_with_openapi_index_map!(Response);
 resolve_with_openapi_index_map!(Schema);
 resolve_with_openapi_index_map!(SecurityScheme);
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -206,8 +220,6 @@ mod tests {
 
         let schema = content_json
             .schema
-            .as_ref()
-            .expect("able to get schema")
             .resolve(&openapi)
             .expect("able to resolve schema");
 
