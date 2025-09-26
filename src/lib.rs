@@ -16,6 +16,8 @@ mod parameter;
 mod paths;
 mod reference;
 mod request_body;
+#[cfg(feature = "resolve")]
+mod resolve;
 mod responses;
 mod schema;
 mod security_requirement;
@@ -45,6 +47,8 @@ pub use self::parameter::*;
 pub use self::paths::*;
 pub use self::reference::*;
 pub use self::request_body::*;
+#[cfg(feature = "resolve")]
+pub use self::resolve::*;
 pub use self::responses::*;
 pub use self::schema::*;
 pub use self::security_requirement::*;
