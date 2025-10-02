@@ -352,3 +352,48 @@ fn test_ref_or_err() {
         ),
     }
 }
+
+#[test]
+fn test_resolve() {
+    let petstore: OpenAPI = serde_yaml::from_str(include_str!("../fixtures/petstore.yaml"))
+        .expect("should be able to parse petstore.yaml");
+
+    let list_pets_path = petstore
+        .paths
+        .paths
+        .get("/pets")
+        .expect("should be able to get /pets")
+        .as_item()
+        .expect("should be able to get /pets");
+
+    let response_200_schema = list_pets_path
+        .get
+        .as_ref()
+        .expect("should have a get method")
+        .responses
+        .responses
+        .get(&StatusCode::Code(200))
+        .expect("should have a 200 response")
+        .resolve(&petstore)
+        .expect("should have a 200 response")
+        .content
+        .get("application/json")
+        .expect("should have a json content")
+        .schema
+        .resolve(&petstore)
+        .expect("should have a schema");
+
+    let SchemaKind::Type(Type::Array(ArrayType { items, .. })) = &response_200_schema.schema_kind
+    else {
+        panic!("should be an array");
+    };
+
+    let item = items.resolve(&petstore).expect("should have an item");
+    let SchemaKind::Type(Type::Object(ObjectType { properties, .. })) = &item.schema_kind else {
+        panic!("should be an object");
+    };
+
+    properties.get("id").expect("should have an id");
+    properties.get("name").expect("should have a name");
+    properties.get("tag").expect("should have a tag");
+}

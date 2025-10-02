@@ -26,7 +26,28 @@ where
     }
 }
 
+impl<T> ResolveWithOpenAPI<T> for ReferenceOr<Box<T>>
+where
+    OpenAPI: Resolve<T>,
+{
+    fn resolve<'a>(&'a self, openapi: &'a OpenAPI) -> Option<&'a T> {
+        match self {
+            ReferenceOr::Reference { reference } => openapi.resolve(reference),
+            ReferenceOr::Item(item) => Some(item),
+        }
+    }
+}
+
 impl<T> ResolveWithOpenAPI<T> for Option<ReferenceOr<T>>
+where
+    OpenAPI: Resolve<T>,
+{
+    fn resolve<'a>(&'a self, openapi: &'a OpenAPI) -> Option<&'a T> {
+        self.as_ref()?.resolve(openapi)
+    }
+}
+
+impl<T> ResolveWithOpenAPI<T> for Option<ReferenceOr<Box<T>>>
 where
     OpenAPI: Resolve<T>,
 {
